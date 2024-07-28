@@ -7,7 +7,7 @@ class ArrowKeyMultiplier {
     private let verticalMultiplier: Int
     private let horizontalMultiplier: Int
     
-    init(verticalMultiplier: Int, horizontalMultiplier: Int) {
+    init(verticalMultiplier: Int = 5, horizontalMultiplier: Int = 5) {
         self.verticalMultiplier = verticalMultiplier
         self.horizontalMultiplier = horizontalMultiplier
     }
@@ -49,34 +49,27 @@ class ArrowKeyMultiplier {
         // Check for up/down/left/right arrow keys (125 is down, 126 is up, 123 is left, 124 is right)
         let isVertical = (keyCode == 125 || keyCode == 126)
         let isHorizontal = (keyCode == 123 || keyCode == 124)
-        
-        if isVertical && flags.contains(.maskAlternate) {
-            // Vertical: option + arrow
-            handleArrowKeyEvent(event: event, keyCode: keyCode, multiplier: verticalMultiplier)
-            return nil // Consume the original event
-        } else if isHorizontal && flags.contains(.maskAlternate) && flags.contains(.maskCommand) {
-            // Horizontal: option + command + arrow
-            handleArrowKeyEvent(event: event, keyCode: keyCode, multiplier: horizontalMultiplier)
+        // Check for option command + arrow keys
+        if (isVertical || isHorizontal) && flags.contains(.maskAlternate) && flags.contains(.maskCommand) {
+            let multiplier = isVertical ? verticalMultiplier : horizontalMultiplier
+            let includeShift = flags.contains(.maskShift)
+            let source = CGEventSource(stateID: .hidSystemState)
+            
+            for _ in 1...multiplier {
+                if let arrowEvent = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(keyCode), keyDown: true) {
+                    if includeShift {
+                        arrowEvent.flags = .maskShift
+                    } else {
+                        arrowEvent.flags = []
+                    }
+                    arrowEvent.post(tap: .cghidEventTap)
+                }
+            }
+            
             return nil // Consume the original event
         }
         
         return Unmanaged.passRetained(event)
-    }
-    
-    private func handleArrowKeyEvent(event: CGEvent, keyCode: Int64, multiplier: Int) {
-        let includeShift = event.flags.contains(.maskShift)
-        let source = CGEventSource(stateID: .hidSystemState)
-        
-        for _ in 1...multiplier {
-            if let arrowEvent = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(keyCode), keyDown: true) {
-                if includeShift {
-                    arrowEvent.flags = .maskShift
-                } else {
-                    arrowEvent.flags = []
-                }
-                arrowEvent.post(tap: .cghidEventTap)
-            }
-        }
     }
     
     static func registerForStartup() {
@@ -97,5 +90,5 @@ if CommandLine.arguments.contains("--register") {
 }
 
 // Start the multiplier
-let multiplier = ArrowKeyMultiplier(verticalMultiplier: 5, horizontalMultiplier: 11)
+let multiplier = ArrowKeyMultiplier(verticalMultiplier: 5, horizontalMultiplier: 5)
 multiplier.start()
