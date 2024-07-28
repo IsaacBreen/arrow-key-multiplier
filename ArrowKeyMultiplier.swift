@@ -4,10 +4,12 @@ import ServiceManagement
 
 class ArrowKeyMultiplier {
     private var eventTap: CFMachPort?
-    private let multiplier: Int
+    private let verticalMultiplier: Int
+    private let horizontalMultiplier: Int
     
-    init(multiplier: Int = 5) {
-        self.multiplier = multiplier
+    init(verticalMultiplier: Int = 5, horizontalMultiplier: Int = 5) {
+        self.verticalMultiplier = verticalMultiplier
+        self.horizontalMultiplier = horizontalMultiplier
     }
     
     func start() {
@@ -44,8 +46,11 @@ class ArrowKeyMultiplier {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let flags = event.flags
         
-        // Check for up/down arrow keys (125 is down, 126 is up)
-        if (keyCode == 125 || keyCode == 126) && flags.contains(.maskAlternate) {
+        // Check for up/down/left/right arrow keys (125 is down, 126 is up, 123 is left, 124 is right)
+        let isVertical = (keyCode == 125 || keyCode == 126)
+        let isHorizontal = (keyCode == 123 || keyCode == 124)
+        if (isVertical || isHorizontal) && flags.contains(.maskAlternate) && flags.contains(.maskSecondaryFn) {
+            let multiplier = isVertical ? verticalMultiplier : horizontalMultiplier
             let includeShift = flags.contains(.maskShift)
             let source = CGEventSource(stateID: .hidSystemState)
             
@@ -84,5 +89,5 @@ if CommandLine.arguments.contains("--register") {
 }
 
 // Start the multiplier
-let multiplier = ArrowKeyMultiplier(multiplier: 5)
+let multiplier = ArrowKeyMultiplier(verticalMultiplier: 5, horizontalMultiplier: 5)
 multiplier.start()
