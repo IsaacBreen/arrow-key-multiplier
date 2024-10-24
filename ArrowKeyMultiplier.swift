@@ -11,6 +11,15 @@ class ArrowKeyMultiplier {
     }
     
     func start() {
+        // Ensure we have accessibility permissions
+        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true]
+        let accessibilityEnabled = AXIsProcessTrustedWithOptions(options)
+        
+        if !accessibilityEnabled {
+            print("Accessibility permissions are required for this app to function.")
+            return
+        }
+        
         let eventMask = (1 << CGEventType.keyDown.rawValue)
         guard let eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -23,7 +32,7 @@ class ArrowKeyMultiplier {
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
-            print("Failed to create event tap")
+            print("Failed to create event tap - ensure the app has proper permissions.")
             return
         }
         
