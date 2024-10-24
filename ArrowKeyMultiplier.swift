@@ -34,21 +34,21 @@ class ArrowKeyMultiplier {
     }
 
     private let keystrokeCallback: CGEventTapCallBack = { proxy, type, event, refcon in
-        guard let event = event else { return nil }
+        guard let cgEvent = event else { return nil }
 
         guard type == .keyDown else {
-            return Unmanaged.passUnretained(event).toOpaque()
+            return Unmanaged.passUnretained(cgEvent).toOpaque() as Unmanaged<CGEvent>?.toOpaque()
         }
 
         let multiplier = Unmanaged<ArrowKeyMultiplier>.fromOpaque(refcon!).takeUnretainedValue()
 
-        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        let flags = event.flags
+        let keyCode = cgEvent.getIntegerValueField(.keyboardEventKeycode)
+        let flags = cgEvent.flags
 
         // Check for up/down arrow keys (125 is down, 126 is up) and Option key
         if (keyCode == 125 || keyCode == 126) && flags.contains(.maskAlternate) {
             let includeShift = flags.contains(.maskShift)
-            guard let source = CGEventSource(stateID: .hidSystemState) else { return Unmanaged.passUnretained(event).toOpaque() }
+            guard let source = CGEventSource(stateID: .hidSystemState) else { return Unmanaged.passUnretained(cgEvent).toOpaque() as Unmanaged<CGEvent>?.toOpaque() }
 
             for _ in 1...multiplier.multiplier {
                 if let arrowEvent = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(keyCode), keyDown: true) {
@@ -64,14 +64,12 @@ class ArrowKeyMultiplier {
             return nil // Consume the original event
         }
 
-        return Unmanaged.passUnretained(event).toOpaque()
+        return Unmanaged.passUnretained(cgEvent).toOpaque() as Unmanaged<CGEvent>?.toOpaque()
     }
 
     static func registerForStartup() {
-        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.example.ArrowKeyMultiplier"
-
         do {
-            try SMAppService.mainApp().register()
+            try SMAppService.mainApp.register()
             print("Successfully registered for startup")
         } catch {
             print("Failed to register for startup: \(error)")
