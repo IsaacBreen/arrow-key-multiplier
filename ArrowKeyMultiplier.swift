@@ -5,11 +5,11 @@ import ServiceManagement
 class ArrowKeyMultiplier {
     private var eventTap: CFMachPort?
     private let multiplier: Int
-    
+
     init(multiplier: Int = 5) {
         self.multiplier = multiplier
     }
-    
+
     func start() {
         let eventMask = (1 << CGEventType.keyDown.rawValue)
         guard let eventTap = CGEvent.tapCreate(
@@ -17,39 +17,40 @@ class ArrowKeyMultiplier {
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(eventMask),
-            callback: { proxy, type, event, refcon in
-                let multiplier = Unmanaged<ArrowKeyMultiplier>.fromOpaque(refcon!).takeUnretainedValue()
-                return multiplier.keystrokeCallback(proxy: proxy, type: type, event: event)
-            },
+            callback: keystrokeCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
-            print("Failed to create event tap")
+            print("Failed to create event tap. Check accessibility permissions in System Preferences -> Security & Privacy -> Privacy.")
             return
         }
-        
+
         self.eventTap = eventTap
-        
+
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: eventTap, enable: true)
-        
+
         CFRunLoopRun()
     }
-    
-    private func keystrokeCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+
+    private let keystrokeCallback: CGEventTapCallBack = { proxy, type, event, refcon in
+        guard let event = event else { return nil }
+
         guard type == .keyDown else {
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passRetained(event).toOpaque()
         }
-        
+
+        let multiplier = Unmanaged<ArrowKeyMultiplier>.fromOpaque(refcon!).takeUnretainedValue()
+
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let flags = event.flags
-        
-        // Check for up/down arrow keys (125 is down, 126 is up)
+
+        // Check for up/down arrow keys (125 is down, 126 is up) and Option key
         if (keyCode == 125 || keyCode == 126) && flags.contains(.maskAlternate) {
             let includeShift = flags.contains(.maskShift)
-            let source = CGEventSource(stateID: .hidSystemState)
-            
-            for _ in 1...multiplier {
+            guard let source = CGEventSource(stateID: .hidSystemState) else { return Unmanaged.passRetained(event).toOpaque() }
+
+            for _ in 1...multiplier.multiplier {
                 if let arrowEvent = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(keyCode), keyDown: true) {
                     if includeShift {
                         arrowEvent.flags = .maskShift
@@ -59,16 +60,16 @@ class ArrowKeyMultiplier {
                     arrowEvent.post(tap: .cghidEventTap)
                 }
             }
-            
+
             return nil // Consume the original event
         }
-        
-        return Unmanaged.passRetained(event)
+
+        return Unmanaged.passRetained(event).toOpaque()
     }
-    
+
     static func registerForStartup() {
-        let bundleIdentifier = "com.user.ArrowKeyMultiplier"
-        
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.example.ArrowKeyMultiplier" // More robust identifier
+
         if SMLoginItemSetEnabled(bundleIdentifier as CFString, true) {
             print("Successfully registered for startup")
         } else {
