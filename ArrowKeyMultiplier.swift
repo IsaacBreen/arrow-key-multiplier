@@ -1,6 +1,5 @@
 import Cocoa
 import Carbon
-import ServiceManagement
 
 class ArrowKeyMultiplier {
     private var eventTap: CFMachPort?
@@ -74,22 +73,6 @@ class ArrowKeyMultiplier {
         
         return Unmanaged.passRetained(event)
     }
-    
-    static func registerForStartup() {
-        let bundleIdentifier = "com.user.ArrowKeyMultiplier"
-        
-        if SMLoginItemSetEnabled(bundleIdentifier as CFString, true) {
-            print("Successfully registered for startup")
-        } else {
-            print("Failed to register for startup")
-        }
-    }
-}
-
-// Check if we should register for startup
-if CommandLine.arguments.contains("--register") {
-    ArrowKeyMultiplier.registerForStartup()
-    exit(0)
 }
 
 // Start the multiplier
